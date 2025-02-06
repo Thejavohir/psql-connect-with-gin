@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"psql/config"
@@ -40,6 +41,8 @@ func (h *handler) handlerResponse(w http.ResponseWriter, message string, code in
 		log.Println(err)
 
 	}
+
+	fmt.Println()
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(body)
