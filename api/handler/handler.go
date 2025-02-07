@@ -1,49 +1,63 @@
 package handler
 
 import (
-	"encoding/json"
-	"fmt"
-	"log"
-	"net/http"
 	"psql/config"
+	"psql/pkg/logger"
 	"psql/storage"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 type handler struct {
-	cfg *config.Config
-	strg storage.StorageI
+	cfg    *config.Config
+	strg   storage.StorageI
+	logger logger.Logger
 }
 
-type response struct {
-	Status int `json:"status"`
+type Response struct {
+	Status      int    `json:"status"`
 	Description string `json:"description"`
-	Data interface{}
+	Data        interface{} `json:"data"`
 }
 
-func NewHandler(cfg *config.Config, storage storage.StorageI) *handler {
+func NewHandler(cfg *config.Config, storage storage.StorageI, logger logger.Logger) *handler {
 	return &handler{
-		cfg: cfg,
-		strg: storage,
+		cfg:    cfg,
+		strg:   storage,
+		logger: logger,
 	}
 }
 
-func (h *handler) handlerResponse(w http.ResponseWriter, message string, code int, data interface{}) {
-	resp := response{
+func (h *handler) handlerResponse(c *gin.Context, path string, code int, message interface{}) {
+	resp := Response{
 		Status: code,
-		Description: message,
-		Data: data,
+		Data:   message,
 	}
 
-	log.Printf("%+v", resp)
-
-	body, err := json.Marshal(resp)
-	if err != nil {
-		log.Println(err)
-
+	switch {
+	case code < 300:
+		h.logger.Info(path, logger.Any("info", resp))
+	case code >= 400:
+		h.logger.Error(path, logger.Any("error", resp ))
 	}
 
-	fmt.Println()
+	c.JSON(code, resp)
+}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+func (h *handler) getOffset(offset string) (int, error) {
+	
+	if len(offset) <= 0 {
+		return h.cfg.DefaultOffset, nil
+	}
+
+	return strconv.Atoi(offset)
+}
+
+func (h *handler) getLimit(limit string) (int, error) {
+	
+	if len(limit) <= 0 {
+		return h.cfg.DefaultLimit, nil
+	}
+	return strconv.Atoi(limit)
 }

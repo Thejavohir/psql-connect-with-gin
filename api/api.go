@@ -1,16 +1,17 @@
 package api
 
 import (
-	"net/http"
 	"psql/api/handler"
 	"psql/config"
+	"psql/pkg/logger"
 	"psql/storage"
+
+	"github.com/gin-gonic/gin"
 )
 
-func NewApi(cfg *config.Config, storage storage.StorageI) {
+func NewApi(r *gin.Engine, cfg *config.Config, storage storage.StorageI, logger logger.Logger) {
 
-	handler := handler.NewHandler(cfg, storage)
+	handler := handler.NewHandler(cfg, storage, logger)
 
-	http.HandleFunc("/category", handler.Category)
-	http.HandleFunc("/product", handler.Product)
+	r.GET("/category", handler.GetListCategory)
 }
