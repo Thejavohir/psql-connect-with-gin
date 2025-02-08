@@ -171,7 +171,7 @@ func (r *productRepo) Delete(req *models.ProductPKey) error {
 
 	_, err := r.db.Exec(query, req.ID)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	return nil

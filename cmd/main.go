@@ -42,6 +42,8 @@ func main() {
 
 	r := gin.New()
 
+	r.Use(gin.Recovery(), gin.Logger())
+
 	api.NewApi(r, &cfg, pgconn, logr)
 
 	err = r.Run(cfg.ServerHost + cfg.HttpPort)

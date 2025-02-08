@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net/http"
 	"psql/config"
 	"psql/pkg/logger"
 	"psql/storage"
@@ -32,6 +33,7 @@ func NewHandler(cfg *config.Config, storage storage.StorageI, logger logger.Logg
 func (h *handler) handlerResponse(c *gin.Context, path string, code int, message interface{}) {
 	resp := Response{
 		Status: code,
+		Description: http.StatusText(code),
 		Data:   message,
 	}
 

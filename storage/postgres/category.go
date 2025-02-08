@@ -141,7 +141,7 @@ func (r *categoryRepo) Update(req *models.UpdateCategory) (*models.Category, err
 		parent_id = $2,
 		updated_at = NOW()
 		WHERE id = $3
-		RETURNING id, title, COALESCE(parent_id::VARCHAR, ''), created_at, updated_at
+		RETURNING id, title, COALESCE(parent_id::VARCHAR, ' '), created_at, updated_at
 	`
 	err := r.db.QueryRow(query, req.Title, req.ParentID, req.ID).Scan(
 		&resp.ID,
@@ -165,7 +165,7 @@ func (r *categoryRepo) Delete(req *models.CategoryPKey) error {
 
 	_, err := r.db.Exec(query, req.ID)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	return nil
