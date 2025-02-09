@@ -19,6 +19,40 @@ definitions:
       title:
         type: string
     type: object
+  models.CreateProduct:
+    properties:
+      category_id:
+        type: string
+      name:
+        type: string
+      price:
+        type: integer
+    type: object
+  models.PatchRequest:
+    properties:
+      fields:
+        additionalProperties: true
+        type: object
+      id:
+        type: string
+    type: object
+  models.Product:
+    properties:
+      category_data:
+        $ref: '#/definitions/models.Category'
+      category_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      updated_at:
+        type: string
+    type: object
   models.UpdateCategory:
     properties:
       id:
@@ -27,6 +61,17 @@ definitions:
         type: string
       title:
         type: string
+    type: object
+  models.UpdateProduct:
+    properties:
+      category_id:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: integer
     type: object
 info:
   contact: {}
@@ -184,4 +229,223 @@ paths:
       summary: Get a category by ID
       tags:
       - categories
+    patch:
+      consumes:
+      - application/json
+      description: Patch details of an existing category
+      operationId: patch_category
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Category to Patch
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/models.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product Patched successfully
+          schema:
+            $ref: '#/definitions/models.Category'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Patch Category
+      tags:
+      - categories
+  /product:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of products with pagination and search
+      parameters:
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Search
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of products
+          schema:
+            items:
+              $ref: '#/definitions/models.Product'
+            type: array
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Get List of Products
+      tags:
+      - products
+    post:
+      consumes:
+      - application/json
+      description: Create a new product with provided details
+      parameters:
+      - description: Product to create
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateProduct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product created successfully
+          schema:
+            $ref: '#/definitions/models.Product'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Create Product
+      tags:
+      - products
+    put:
+      consumes:
+      - application/json
+      description: Update details of an existing product
+      parameters:
+      - description: Product to update
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateProduct'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product updated successfully
+          schema:
+            $ref: '#/definitions/models.Product'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Update Product
+      tags:
+      - products
+  /product/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a product by its ID
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Deleted successfully
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Delete Product
+      tags:
+      - products
+    get:
+      consumes:
+      - application/json
+      description: Get details of a product by its ID
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product details
+          schema:
+            $ref: '#/definitions/models.Product'
+        "400":
+          description: Invalid ID
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Get Product by ID
+      tags:
+      - products
+    patch:
+      consumes:
+      - application/json
+      description: Patch details of an existing product
+      operationId: patch_product
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Product to Patch
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/models.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product Patched successfully
+          schema:
+            $ref: '#/definitions/models.Product'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Patch Product
+      tags:
+      - products
 swagger: "2.0"

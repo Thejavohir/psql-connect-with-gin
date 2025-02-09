@@ -1,24 +1,29 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-	"psql/models"
+	"psql/api/models"
+	"psql/pkg/helper"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type productRepo struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
-func NewProductRepo(db *sql.DB) *productRepo {
+func NewProductRepo(db *pgxpool.Pool) *productRepo {
 	return &productRepo{
 		db: db,
 	}
 }
 
-func (p *productRepo) Create(req *models.CreateProduct) (string, error) {
+func (p *productRepo) Create(ctx context.Context, req *models.CreateProduct) (string, error) {
 
 	var (
 		id    = uuid.New().String()
@@ -28,7 +33,7 @@ func (p *productRepo) Create(req *models.CreateProduct) (string, error) {
 	query = `INSERT INTO product(id, name, price, category_id, updated_at)
 			VALUES ($1, $2, $3, $4, NOW())`
 
-	_, err := p.db.Exec(query,
+	_, err := p.db.Exec(ctx, query,
 		id,
 		req.Name,
 		req.Price,
@@ -41,41 +46,74 @@ func (p *productRepo) Create(req *models.CreateProduct) (string, error) {
 	return id, nil
 }
 
-func (r *productRepo) GetById(req *models.ProductPKey) (*models.Product, error) {
+func (r *productRepo) GetById(ctx context.Context, req *models.ProductPKey) (*models.Product, error) {
 
 	var (
-		resp models.Product
+		categoryObj pgtype.JSON
+
+		id         sql.NullString
+		name       sql.NullString
+		price      sql.NullFloat64
+		categoryId sql.NullString
+		createdAt  sql.NullString
+		updatedAt  sql.NullString
 	)
 
 	query := `
 		SELECT
-			id,
-			name,
-			price,
-			category_id,
-			created_at,
-			updated_at
-		FROM product WHERE id = $1
+			p.id,
+			p.name,
+			p.price,
+			p.category_id,
+			p.created_at,
+			p.updated_at,
+			
+			JSON_BUILD_OBJECT(
+			'id', c.id,
+			'title', c.title,
+			'parent_id', c.parent_id,
+			'updated_at', c.updated_at,
+			'created_at', c.created_at
+			) AS category
+		FROM product as p
+		LEFT JOIN category AS c ON c.id = p.category_id
+		WHERE p.id = $1
 	`
-	err := r.db.QueryRow(query, req.ID).Scan(
-		&resp.ID,
-		&resp.Name,
-		&resp.Price,
-		&resp.CategoryID,
-		&resp.CreatedAt,
-		&resp.UpdatedAt,
+	err := r.db.QueryRow(ctx, query, req.ID).Scan(
+		&id,
+		&name,
+		&price,
+		&categoryId,
+		&createdAt,
+		&updatedAt,
+		&categoryObj,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &resp, nil
+	category := models.Category{}
+	err = categoryObj.AssignTo(&category)
+	if err != nil {
+		return nil, fmt.Errorf("assigning category: %w", err)
+	}
+
+	return &models.Product{
+		ID:           id.String,
+		Name:         name.String,
+		Price:        price.Float64,
+		CategoryData: &category,
+		CategoryID:   categoryId.String,
+		CreatedAt:    createdAt.String,
+		UpdatedAt:    updatedAt.String,
+	}, nil
 }
 
-func (r *productRepo) GetList(req *models.ProductGetListReq) (*models.ProductGetListResp, error) {
+func (r *productRepo) GetList(ctx context.Context, req *models.ProductGetListReq) (*models.ProductGetListResp, error) {
 
 	var (
-		resp   = &models.ProductGetListResp{}
+		resp = &models.ProductGetListResp{}
+		// categoryObj pgtype.JSON
 		query  string
 		where  = " WHERE TRUE"
 		offset = " OFFSET 0"
@@ -92,7 +130,15 @@ func (r *productRepo) GetList(req *models.ProductGetListReq) (*models.ProductGet
 			created_at,
 			updated_at
 		FROM product
-	`
+		`
+	// JSON_BUILD_OBJECT(
+	// 'id', c.id,
+	// 'title', c.title,
+	// 'parent_id', c.parent_id,
+	// 'created_at', c.created_at,
+	// 'updated_at', c.updated_at
+	// ) AS category
+	// LEFT JOIN category AS c ON c.id = p.category_id
 
 	if req.Offset > 0 {
 		offset = fmt.Sprintf(" OFFSET %d", req.Offset)
@@ -108,71 +154,119 @@ func (r *productRepo) GetList(req *models.ProductGetListReq) (*models.ProductGet
 
 	query += where + offset + limit
 
-	rows, err := r.db.Query(query)
+	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 
 	for rows.Next() {
-		var product models.Product
+		var (
+			id         sql.NullString
+			name       sql.NullString
+			price      sql.NullFloat64
+			categoryId sql.NullString
+			createdAt  sql.NullString
+			updatedAt  sql.NullString
+		)
 		err := rows.Scan(
 			&resp.Count,
-			&product.ID,
-			&product.Name,
-			&product.Price,
-			&product.CategoryID,
-			&product.CreatedAt,
-			&product.UpdatedAt,
+			&id,
+			&name,
+			&price,
+			&categoryId,
+			&createdAt,
+			&updatedAt,
 		)
 		if err != nil {
 			return nil, err
 		}
-		resp.Product = append(resp.Product, &product)
+		resp.Product = append(resp.Product, &models.Product{
+			ID:         id.String,
+			Name:       name.String,
+			Price:      price.Float64,
+			CategoryID: categoryId.String,
+			CreatedAt:  createdAt.String,
+			UpdatedAt:  updatedAt.String,
+		})
 	}
 
 	return resp, nil
 }
 
-func (r *productRepo) Update(req *models.UpdateProduct) (*models.Product, error) {
+func (r *productRepo) Update(ctx context.Context, req *models.UpdateProduct) (int64, error) {
 
 	var (
-		resp models.Product
+		params map[string]interface{}
 	)
 
 	query := `
 		UPDATE product SET
-		name = $1,
-		price = $2,
-		category_id = $3,
+		name = :name,
+		price = :price,
+		category_id = :category_id,
 		updated_at = NOW()
-		WHERE id = $4
-		RETURNING id, name, price, category_id, created_at, updated_at
+		WHERE id = :id
 	`
-	err := r.db.QueryRow(query, req.Name, req.Price, req.CategoryID, req.ID).Scan(
-		&resp.ID,
-		&resp.Name,
-		&resp.Price,
-		&resp.CategoryID,
-		&resp.CreatedAt,
-		&resp.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
+	params = map[string]interface{}{
+		"id":          req.ID,
+		"name":        req.Name,
+		"price":       req.Price,
+		"category_id": helper.NewNullString(req.CategoryID),
 	}
 
-	return &resp, nil
+	query, args := helper.ReplaceQueryParams(query, params)
+	resp, err := r.db.Exec(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.RowsAffected(), nil
 }
 
-func (r *productRepo) Delete(req *models.ProductPKey) error {
+func (r *productRepo) Delete(ctx context.Context, req *models.ProductPKey) error {
 	query := `
 		DELETE FROM product
 		WHERE id = $1
 	`
 
-	_, err := r.db.Exec(query, req.ID)
+	_, err := r.db.Exec(ctx, query, req.ID)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+
+func (r *productRepo) Patch(ctx context.Context, req *models.PatchRequest) (int64, error) {
+
+	var (
+		query string
+		set   string
+	)
+
+	if len(req.Fields) <= 0 {
+		return 0, errors.New("no fields")
+	}
+
+	for key := range req.Fields {
+		fmt.Println("KEEYYY:", key)
+		set += fmt.Sprintf(" %s = :%s, ", key, key)
+	}
+
+	query = `
+		UPDATE product SET ` + set + ` updated_at = NOW()
+		WHERE id = :id`
+
+	req.Fields["id"] = req.ID
+
+	fmt.Println("QUERYYY:",query)
+
+	query, args := helper.ReplaceQueryParams(query, req.Fields)
+	resp, err := r.db.Exec(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.RowsAffected(), nil
 }

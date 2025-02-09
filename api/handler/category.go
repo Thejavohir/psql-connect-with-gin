@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"psql/models"
+	"psql/api/models"
 	"psql/pkg/helper"
 
 	"github.com/gin-gonic/gin"
@@ -30,17 +30,17 @@ func (h *handler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	id, err := h.strg.Category().Create(&createCategory)
+	id, err := h.strg.Category().Create(c.Request.Context(), &createCategory)
 	if err != nil {
 		h.handlerResponse(c, "storage.category.create", http.StatusInternalServerError, err.Error())
 	}
 
-	resp, err := h.strg.Category().GetById(&models.CategoryPKey{ID: id})
+	resp, err := h.strg.Category().GetById(c.Request.Context(), &models.CategoryPKey{ID: id})
 	if err != nil {
 		h.handlerResponse(c, "category GetBydID in create category: ", http.StatusInternalServerError, nil)
 	}
 
-	h.handlerResponse(c, "create category response", http.StatusOK, resp)
+	h.handlerResponse(c, "create category response", http.StatusCreated, resp)
 }
 
 // GetByIdCategory godoc
@@ -61,7 +61,7 @@ func (h *handler) GetByIdCategory(c *gin.Context) {
 		h.handlerResponse(c, "invalid id", http.StatusBadRequest, "invalid id")
 		return
 	}
-	resp, err := h.strg.Category().GetById(&models.CategoryPKey{ID: id})
+	resp, err := h.strg.Category().GetById(c.Request.Context(), &models.CategoryPKey{ID: id})
 	if err != nil {
 		h.handlerResponse(c, "category GetBydID in get by id category: ", http.StatusInternalServerError, err.Error())
 	}
@@ -94,7 +94,7 @@ func (h *handler) GetListCategory(c *gin.Context) {
 		h.handlerResponse(c, "GetListCategory limit", http.StatusBadRequest, "invalid limit")
 	}
 
-	resp, err := h.strg.Category().GetList(&models.CategoryGetListReq{
+	resp, err := h.strg.Category().GetList(c.Request.Context(), &models.CategoryGetListReq{
 		Offset: offset,
 		Limit:  limit,
 		Search: c.Query("search"),
@@ -125,17 +125,70 @@ func (h *handler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.strg.Category().Update(&updateCategory)
+	rowsAffected, err := h.strg.Category().Update(c.Request.Context(), &updateCategory)
 	if err != nil {
 		h.handlerResponse(c, "strg.category.update", http.StatusInternalServerError, err.Error())
 	}
 
-	getCategory, err := h.strg.Category().GetById(&models.CategoryPKey{ID: resp.ID})
+	if rowsAffected <= 0 {
+		h.handlerResponse(c, "strg.category.update", http.StatusBadRequest, "no rows")
+	}
+
+	getCategory, err := h.strg.Category().GetById(c.Request.Context(), &models.CategoryPKey{ID: updateCategory.ID})
 	if err != nil {
 		h.handlerResponse(c, "strg.category.getbyid: ", http.StatusInternalServerError, err.Error())
 	}
 
-	h.handlerResponse(c, "udpate category response", http.StatusOK, getCategory)
+	h.handlerResponse(c, "udpate category response", http.StatusAccepted, getCategory)
+}
+
+// PatchCategory godoc
+// @ID patch_category
+// @Summary Patch Category
+// @Description Patch details of an existing category
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Param id path string true "id"
+// @Param category body models.PatchRequest true "Category to Patch"
+// @Success 200 {object} models.Category "Product Patched successfully"
+// @Failure 400 {string} Response{data=string} "Invalid request"
+// @Failure 500 {string} Response{data=string} "Internal error"
+// @Router /category/{id} [patch]
+func (h *handler) PatchCategory(c *gin.Context) {
+	var (
+		id            string = c.Param("id")
+		patchCategory models.PatchRequest
+	)
+
+	if !helper.IsValidUUID(id) {
+		h.handlerResponse(c, "isValidUUID", http.StatusNotFound, "id not found")
+		return
+	}
+
+	if err := c.ShouldBindJSON(&patchCategory); err != nil {
+		h.handlerResponse(c, "shoudBindJSON patch Product", http.StatusBadRequest, err.Error())
+		return
+	}
+
+	patchCategory.ID = id
+	rows, err := h.strg.Category().Patch(c.Request.Context(), &patchCategory)
+	if err != nil {
+		h.handlerResponse(c, "strg.Category.Patch", http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if rows <= 0 {
+		h.handlerResponse(c, "strg.category.patch", http.StatusBadRequest, "no rows affected")
+		return
+	}
+
+	getCategory, err := h.strg.Category().GetById(c.Request.Context(), &models.CategoryPKey{ID: id})
+	if err != nil {
+		h.handlerResponse(c, "strg.category.getbyid: ", http.StatusInternalServerError, err.Error())
+	}
+
+	h.handlerResponse(c, "patch category response", http.StatusAccepted, getCategory)
 }
 
 // DeleteCategory godoc
@@ -157,7 +210,7 @@ func (h *handler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	err := h.strg.Category().Delete(&models.CategoryPKey{ID: id})
+	err := h.strg.Category().Delete(c.Request.Context(), &models.CategoryPKey{ID: id})
 	if err != nil {
 		h.handlerResponse(c, "strg.category.delete", http.StatusInternalServerError, err.Error())
 		return

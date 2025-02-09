@@ -1,9 +1,10 @@
 package postgres
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/lib/pq"
 
 	"psql/config"
@@ -11,35 +12,36 @@ import (
 )
 
 type store struct {
-	db *sql.DB
+	db       *pgxpool.Pool
 	category *categoryRepo
-	product *productRepo
+	product  *productRepo
 }
 
 func NewConnectionPostgres(cfg *config.Config) (storage.StorageI, error) {
 
-	connect := fmt.Sprintf(
+	connect, err := pgxpool.ParseConfig(fmt.Sprintf(
 		"host=%s user=%s dbname=%s password=%s port=%d",
 		cfg.PostgresHost,
 		cfg.PostgresUser,
 		cfg.PostgresDatabase,
 		cfg.PostgresPassword,
 		cfg.PostgresPort,
-	)
-
-	sqlDB, err := sql.Open("postgres", connect)
+	))
 	if err != nil {
 		return nil, err
 	}
 
-	if err := sqlDB.Ping(); err != nil {
+	connect.MaxConns = cfg.PostgresMaxConnection
+
+	pgxpool, err := pgxpool.ConnectConfig(context.Background(), connect)
+	if err != nil {
 		return nil, err
 	}
 
 	fmt.Println("Ping worked ")
 
 	return &store{
-		db: sqlDB,
+		db: pgxpool,
 	}, nil
 }
 

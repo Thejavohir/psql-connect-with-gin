@@ -1,6 +1,9 @@
 package storage
 
-import "psql/models"
+import (
+	"context"
+	"psql/api/models"
+)
 
 type StorageI interface{
 	Close()
@@ -9,17 +12,19 @@ type StorageI interface{
 }
 
 type CategoryRepoI interface {
-	Create(*models.CreateCategory) (string, error)
-	GetById(*models.CategoryPKey) (*models.Category, error)
-	GetList(*models.CategoryGetListReq) (*models.CategoryGetListResp, error)
-	Update(*models.UpdateCategory) (*models.Category, error)
-	Delete(*models.CategoryPKey) error 
+	Create(context.Context, *models.CreateCategory) (string, error)
+	GetById(context.Context, *models.CategoryPKey) (*models.Category, error)
+	GetList(context.Context, *models.CategoryGetListReq) (*models.CategoryGetListResp, error)
+	Update(context.Context, *models.UpdateCategory) (int64, error)
+	Patch(context.Context, *models.PatchRequest) (int64, error)
+	Delete(context.Context, *models.CategoryPKey) error 
 }
 
 type ProductRepoI interface {
-	Create(*models.CreateProduct) (string, error)
-	GetById(*models.ProductPKey) (*models.Product, error)
-	GetList(*models.ProductGetListReq) (*models.ProductGetListResp, error)
-	Update(*models.UpdateProduct) (*models.Product, error)
-	Delete(*models.ProductPKey) error 
+	Create(context.Context, *models.CreateProduct) (string, error)
+	GetById(context.Context, *models.ProductPKey) (*models.Product, error)
+	GetList(context.Context, *models.ProductGetListReq) (*models.ProductGetListResp, error)
+	Update(context.Context, *models.UpdateProduct) (int64, error)
+	Patch(context.Context, *models.PatchRequest) (int64, error)
+	Delete(context.Context, *models.ProductPKey) error 
 }
