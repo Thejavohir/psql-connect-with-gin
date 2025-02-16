@@ -90,7 +90,7 @@ func (r *categoryRepo) GetList(ctx context.Context, req *models.CategoryGetListR
 		query  string
 		where  = " WHERE TRUE"
 		offset = " OFFSET 0"
-		limit  = " LIMIT 0"
+		limit  = " LIMIT 10"
 	)
 
 	query = `
@@ -122,6 +122,7 @@ func (r *categoryRepo) GetList(ctx context.Context, req *models.CategoryGetListR
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var (

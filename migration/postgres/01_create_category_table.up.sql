@@ -1,4 +1,4 @@
-CREATE TABLE "category" (
+CREATE TABLE IF NOT EXISTS "category" (
     "id" UUID PRIMARY KEY,
     "title" VARCHAR NOT NULL,
     "parent_id" UUID REFERENCES "category"("id"),

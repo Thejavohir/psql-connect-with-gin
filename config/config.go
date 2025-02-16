@@ -14,14 +14,21 @@ type Config struct {
 	ServerHost string
 	HttpPort   string
 
+	PrivateKey string
+
 	PostgresHost     string
 	PostgresUser     string
 	PostgresDatabase string
 	PostgresPassword string
 	PostgresPort     int
 
+	RedisHost     string
+	RedisPort     string
+	RedisDB       int
+	RedisPassword string
+
 	DefaultOffset int
-	DefaultLimit int
+	DefaultLimit  int
 
 	PostgresMaxConnection int32
 }
@@ -30,6 +37,8 @@ const (
 	DebugMode   = "debug"
 	TestMode    = "test"
 	ReleaseMode = "release"
+
+	SuperAdmin = "SUPERADMIN"
 )
 
 func Load() Config {
@@ -38,28 +47,35 @@ func Load() Config {
 		log.Printf(".env file not found %+v", err)
 	}
 
-	cfg := Config{}
+	c := Config{}
 
-	cfg.Environment = cast.ToString(getOrReturnDefaultValue("ENVIRONMENT", DebugMode))
+	c.Environment = cast.ToString(getOrReturnDefault("ENVIRONMENT", DebugMode))
 
-	cfg.ServerHost = cast.ToString(getOrReturnDefaultValue("SERVER_HOST", "localhost"))
-	cfg.HttpPort = cast.ToString(getOrReturnDefaultValue("HTTP_PORT", ":8080"))
+	c.ServerHost = cast.ToString(getOrReturnDefault("SERVER_HOST", "localhost"))
+	c.HttpPort = cast.ToString(getOrReturnDefault("HTTP_PORT", ":8080"))
 
-	cfg.PostgresHost = cast.ToString(getOrReturnDefaultValue("POSTGRES_HOST", "localhost "))
-	cfg.PostgresUser = cast.ToString(getOrReturnDefaultValue("POSTGRES_USER", "javohir"))
-	cfg.PostgresDatabase = cast.ToString(getOrReturnDefaultValue("POSTGRES_DATABASE", "postgres_connect"))
-	cfg.PostgresPassword = cast.ToString(getOrReturnDefaultValue("POSTGRES_PASSWORD", "javohir1"))
-	cfg.PostgresPort = cast.ToInt(getOrReturnDefaultValue("POSTGRES_PORT", 5432))
+	c.PostgresHost = cast.ToString(getOrReturnDefault("POSTGRES_HOST", "localhost "))
+	c.PostgresUser = cast.ToString(getOrReturnDefault("POSTGRES_USER", "javohir"))
+	c.PostgresDatabase = cast.ToString(getOrReturnDefault("POSTGRES_DATABASE", "postgres_connect"))
+	c.PostgresPassword = cast.ToString(getOrReturnDefault("POSTGRES_PASSWORD", "javohir1"))
+	c.PostgresPort = cast.ToInt(getOrReturnDefault("POSTGRES_PORT", 5432))
 
-	cfg.PostgresMaxConnection = cast.ToInt32(getOrReturnDefaultValue("POSTGRES_MAX_CONNECTION", 30))
-	
-	cfg.DefaultOffset = cast.ToInt(getOrReturnDefaultValue("OFFSET", 0))
-	cfg.DefaultLimit = cast.ToInt(getOrReturnDefaultValue("LIMIT", 10))
+	c.RedisHost = cast.ToString(getOrReturnDefault("REDIS_HOST", "localhost"))
+	c.RedisPort = cast.ToString(getOrReturnDefault("REDIS_PORT", ":6379"))
+	c.RedisDB = cast.ToInt(getOrReturnDefault("REDIS_DB", 0))
+	c.RedisPassword = cast.ToString(getOrReturnDefault("REDIS_PASSWORD", ""))
 
-	return cfg
+	c.PrivateKey = cast.ToString(getOrReturnDefault("PRIVATE_KEY", "samalama1412"))
+
+	c.PostgresMaxConnection = cast.ToInt32(getOrReturnDefault("POSTGRES_MAX_CONNECTION", 30))
+
+	c.DefaultOffset = cast.ToInt(getOrReturnDefault("OFFSET", 0))
+	c.DefaultLimit = cast.ToInt(getOrReturnDefault("LIMIT", 10))
+
+	return c
 }
 
-func getOrReturnDefaultValue(key string, defaultValue interface{}) interface{} {
+func getOrReturnDefault(key string, defaultValue interface{}) interface{} {
 	val, exists := os.LookupEnv(key)
 	if exists {
 		return val

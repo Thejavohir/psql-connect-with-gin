@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS branch, branch_product_relation;

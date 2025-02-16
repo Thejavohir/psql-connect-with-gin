@@ -1,4 +1,23 @@
 definitions:
+  models.Branch:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      products:
+        items:
+          $ref: '#/definitions/models.Product'
+        type: array
+      updated_at:
+        type: string
+    type: object
   models.Category:
     properties:
       created_at:
@@ -12,6 +31,15 @@ definitions:
       updated_at:
         type: string
     type: object
+  models.CreateBranch:
+    properties:
+      address:
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+    type: object
   models.CreateCategory:
     properties:
       parent_id:
@@ -21,12 +49,25 @@ definitions:
     type: object
   models.CreateProduct:
     properties:
+      barcode:
+        type: string
+      branch_ids:
+        items:
+          type: string
+        type: array
       category_id:
         type: string
       name:
         type: string
       price:
         type: integer
+    type: object
+  models.CreateUser:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
     type: object
   models.PatchRequest:
     properties:
@@ -38,6 +79,8 @@ definitions:
     type: object
   models.Product:
     properties:
+      barcode:
+        type: string
       category_data:
         $ref: '#/definitions/models.Category'
       category_id:
@@ -53,6 +96,21 @@ definitions:
       updated_at:
         type: string
     type: object
+  models.UpdateBranch:
+    properties:
+      address:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      products:
+        items:
+          type: string
+        type: array
+    type: object
   models.UpdateCategory:
     properties:
       id:
@@ -64,6 +122,12 @@ definitions:
     type: object
   models.UpdateProduct:
     properties:
+      barcode:
+        type: string
+      branch_ids:
+        items:
+          type: string
+        type: array
       category_id:
         type: string
       id:
@@ -72,6 +136,28 @@ definitions:
         type: string
       price:
         type: integer
+    type: object
+  models.UpdateUser:
+    properties:
+      id:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  models.User:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      password:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
     type: object
 info:
   contact: {}
@@ -264,6 +350,36 @@ paths:
       summary: Patch Category
       tags:
       - categories
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Login
+      parameters:
+      - description: Login
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateUser'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successfully
+          schema:
+            type: string
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Login
+      tags:
+      - login
   /product:
     get:
       consumes:
@@ -282,6 +398,10 @@ paths:
         in: query
         name: search
         type: string
+      - description: Search by Barcode
+        in: query
+        name: search_barcode
+        type: integer
       produces:
       - application/json
       responses:
@@ -448,4 +568,388 @@ paths:
       summary: Patch Product
       tags:
       - products
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user with provided details
+      parameters:
+      - description: User to register
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateUser'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Registered successfully
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Register
+      tags:
+      - register
+  /v1/branch:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of branches with pagination and search
+      parameters:
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Search
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of branches
+          schema:
+            items:
+              $ref: '#/definitions/models.Branch'
+            type: array
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Get List of Branches
+      tags:
+      - branches
+    post:
+      consumes:
+      - application/json
+      description: Create a new branch with provided details
+      parameters:
+      - description: Branch to create
+        in: body
+        name: branch
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateBranch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Branch created successfully
+          schema:
+            $ref: '#/definitions/models.Branch'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Create Branch
+      tags:
+      - branches
+    put:
+      consumes:
+      - application/json
+      description: Update details of an existing branch
+      parameters:
+      - description: Branch to update
+        in: body
+        name: branch
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateBranch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Branch updated successfully
+          schema:
+            $ref: '#/definitions/models.Branch'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Update Branch
+      tags:
+      - branches
+  /v1/branch/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a branch by its ID
+      parameters:
+      - description: Branch ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Deleted successfully
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Delete Branch
+      tags:
+      - branches
+    get:
+      consumes:
+      - application/json
+      description: Get details of a branch by its ID
+      parameters:
+      - description: Branch ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Branch details
+          schema:
+            $ref: '#/definitions/models.Branch'
+        "400":
+          description: Invalid ID
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Get Branch by ID
+      tags:
+      - branches
+    patch:
+      consumes:
+      - application/json
+      description: Patch details of an existing branch
+      operationId: patch_branch
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Branch to Patch
+        in: body
+        name: branch
+        required: true
+        schema:
+          $ref: '#/definitions/models.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Branch Patched successfully
+          schema:
+            $ref: '#/definitions/models.Branch'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Patch Branch
+      tags:
+      - branches
+  /v1/user:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of users with pagination and search
+      parameters:
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Search
+        in: query
+        name: search
+        type: string
+      - description: Search by Barcode
+        in: query
+        name: search_barcode
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of users
+          schema:
+            items:
+              $ref: '#/definitions/models.User'
+            type: array
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Get List of Users
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update details of an existing user
+      parameters:
+      - description: User to update
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateUser'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User updated successfully
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Update User
+      tags:
+      - users
+  /v1/user/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a user by its ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Deleted successfully
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Delete User
+      tags:
+      - users
+    get:
+      consumes:
+      - application/json
+      description: Get details of a user by its ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User details
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Invalid ID
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Get User by ID
+      tags:
+      - users
+    patch:
+      consumes:
+      - application/json
+      description: Patch details of an existing user
+      operationId: patch_user
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User to Patch
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.PatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User Patched successfully
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Patch User
+      tags:
+      - users
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

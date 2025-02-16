@@ -30,14 +30,15 @@ func (p *productRepo) Create(ctx context.Context, req *models.CreateProduct) (st
 		query string
 	)
 
-	query = `INSERT INTO product(id, name, price, category_id, updated_at)
-			VALUES ($1, $2, $3, $4, NOW())`
+	query = `INSERT INTO product(id, name, price, category_id, barcode, updated_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())`
 
 	_, err := p.db.Exec(ctx, query,
 		id,
 		req.Name,
 		req.Price,
 		req.CategoryID,
+		req.Barcode,
 	)
 	if err != nil {
 		return "", err
@@ -50,46 +51,77 @@ func (r *productRepo) GetById(ctx context.Context, req *models.ProductPKey) (*mo
 
 	var (
 		categoryObj pgtype.JSON
+		branchObj   pgtype.JSON
 
 		id         sql.NullString
 		name       sql.NullString
 		price      sql.NullFloat64
 		categoryId sql.NullString
+		barcode    sql.NullString
 		createdAt  sql.NullString
 		updatedAt  sql.NullString
 	)
 
 	query := `
+		WITH product_branches AS (
+		    SELECT
+		        bp.product_id,
+		        JSON_AGG(
+		            JSON_BUILD_OBJECT(
+		                'id', b.id,
+		                'name', b.name,
+		                'address', b.address,
+		                'phone_number', b.phone_number,
+		                'created_at', b.created_at,
+		                'updated_at', b.updated_at
+		            )
+		        ) AS branches
+		    FROM branch AS b
+		    JOIN branch_product_relation AS bp ON bp.branch_id = b.id
+		    WHERE bp.product_id = $1
+		    GROUP BY bp.product_id
+		)
 		SELECT
-			p.id,
-			p.name,
-			p.price,
-			p.category_id,
-			p.created_at,
-			p.updated_at,
-			
-			JSON_BUILD_OBJECT(
-			'id', c.id,
-			'title', c.title,
-			'parent_id', c.parent_id,
-			'updated_at', c.updated_at,
-			'created_at', c.created_at
-			) AS category
-		FROM product as p
+		    p.id,
+		    p.name,
+		    p.price,
+		    p.category_id,
+			p.barcode,
+		    p.created_at,
+		    p.updated_at,
+		    COALESCE(pb.branches, '[]'::json) as branches,
+
+		    JSON_BUILD_OBJECT(
+		    'id', c.id,
+		    'title', c.title,
+		    'parent_id', c.parent_id,
+		    'updated_at', c.updated_at,
+		    'created_at', c.created_at
+		    ) AS category
+		FROM product AS p 
+		JOIN product_branches AS pb ON pb.product_id = p.id
 		LEFT JOIN category AS c ON c.id = p.category_id
-		WHERE p.id = $1
+		WHERE p.id = $1;
 	`
 	err := r.db.QueryRow(ctx, query, req.ID).Scan(
 		&id,
 		&name,
 		&price,
 		&categoryId,
+		&barcode,
 		&createdAt,
 		&updatedAt,
+		&branchObj,
 		&categoryObj,
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	branch := []*models.Branch{}
+	err = branchObj.AssignTo(&branch)
+	if err != nil {
+		return nil, fmt.Errorf("assigning branch: %w", err)
 	}
 
 	category := models.Category{}
@@ -103,7 +135,9 @@ func (r *productRepo) GetById(ctx context.Context, req *models.ProductPKey) (*mo
 		Name:         name.String,
 		Price:        price.Float64,
 		CategoryData: &category,
+		Branches:     branch,
 		CategoryID:   categoryId.String,
+		Barcode:      barcode.String,
 		CreatedAt:    createdAt.String,
 		UpdatedAt:    updatedAt.String,
 	}, nil
@@ -127,6 +161,7 @@ func (r *productRepo) GetList(ctx context.Context, req *models.ProductGetListReq
 			name,
 			price,
 			category_id,
+			barcode,
 			created_at,
 			updated_at
 		FROM product
@@ -149,7 +184,11 @@ func (r *productRepo) GetList(ctx context.Context, req *models.ProductGetListReq
 	}
 
 	if req.Search != "" {
-		where += ` AND title ILIKE '%' || '` + req.Search + `' || '%'`
+		where += ` AND name ILIKE '%' || '` + req.Search + `' || '%'`
+	}
+
+	if req.Barcode != "" {
+		where += ` AND barcode = ` + req.Barcode
 	}
 
 	query += where + offset + limit
@@ -157,7 +196,8 @@ func (r *productRepo) GetList(ctx context.Context, req *models.ProductGetListReq
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err
-	}
+	} 
+	defer rows.Close()
 
 	for rows.Next() {
 		var (
@@ -165,6 +205,7 @@ func (r *productRepo) GetList(ctx context.Context, req *models.ProductGetListReq
 			name       sql.NullString
 			price      sql.NullFloat64
 			categoryId sql.NullString
+			barcode    sql.NullString
 			createdAt  sql.NullString
 			updatedAt  sql.NullString
 		)
@@ -174,6 +215,7 @@ func (r *productRepo) GetList(ctx context.Context, req *models.ProductGetListReq
 			&name,
 			&price,
 			&categoryId,
+			&barcode,
 			&createdAt,
 			&updatedAt,
 		)
@@ -185,6 +227,7 @@ func (r *productRepo) GetList(ctx context.Context, req *models.ProductGetListReq
 			Name:       name.String,
 			Price:      price.Float64,
 			CategoryID: categoryId.String,
+			Barcode:    barcode.String,
 			CreatedAt:  createdAt.String,
 			UpdatedAt:  updatedAt.String,
 		})
@@ -204,6 +247,7 @@ func (r *productRepo) Update(ctx context.Context, req *models.UpdateProduct) (in
 		name = :name,
 		price = :price,
 		category_id = :category_id,
+		barcode = :barcode,
 		updated_at = NOW()
 		WHERE id = :id
 	`
@@ -212,6 +256,7 @@ func (r *productRepo) Update(ctx context.Context, req *models.UpdateProduct) (in
 		"name":        req.Name,
 		"price":       req.Price,
 		"category_id": helper.NewNullString(req.CategoryID),
+		"barcode": req.Barcode,
 	}
 
 	query, args := helper.ReplaceQueryParams(query, params)
@@ -237,7 +282,6 @@ func (r *productRepo) Delete(ctx context.Context, req *models.ProductPKey) error
 	return nil
 }
 
-
 func (r *productRepo) Patch(ctx context.Context, req *models.PatchRequest) (int64, error) {
 
 	var (
@@ -260,7 +304,7 @@ func (r *productRepo) Patch(ctx context.Context, req *models.PatchRequest) (int6
 
 	req.Fields["id"] = req.ID
 
-	fmt.Println("QUERYYY:",query)
+	fmt.Println("QUERYYY:", query)
 
 	query, args := helper.ReplaceQueryParams(query, req.Fields)
 	resp, err := r.db.Exec(ctx, query, args...)

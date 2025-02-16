@@ -5,6 +5,7 @@ import (
 	"psql/config"
 	"psql/pkg/logger"
 	"psql/storage/postgres"
+	"psql/storage/redis"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,7 +28,7 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	logr  := logger.New(*loggerLevel, "app")
+	logr := logger.New(*loggerLevel, "app")
 	defer func() {
 		err := logger.Cleanup(logr)
 		if err != nil {
@@ -39,12 +40,19 @@ func main() {
 	if err != nil {
 		panic("Connection to postgres failed " + err.Error())
 	}
+	defer pgconn.Close()
+
+	redisconn, err := redis.NewConnectionRedis(&cfg)
+	if err != nil {
+		panic("Connectin to redis failed " + err.Error())
+	}
+	defer redisconn.Close()
 
 	r := gin.New()
 
 	r.Use(gin.Recovery(), gin.Logger())
 
-	api.NewApi(r, &cfg, pgconn, logr)
+	api.NewApi(r, &cfg, pgconn, logr, redisconn)
 
 	err = r.Run(cfg.ServerHost + cfg.HttpPort)
 	if err != nil {
